@@ -45,7 +45,7 @@ object Main extends JFXApp3 {
                 sEnergy
             )
         }
-        println(sharkList.length + " shark(s) spawned")        
+        println(sharkList.length + " shark(s) spawned")
 
         // Init HashMap
         val emptyGrid : Map[(Int, Int), FishType] = Map()
