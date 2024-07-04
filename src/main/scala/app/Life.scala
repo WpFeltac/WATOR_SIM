@@ -52,6 +52,7 @@ final case class Life(grid : Map[(Int, Int), FishType], tunaList: List[Tuna], sh
         val moveTunaList = tunaList.map(tuna => {
             getRandomFreeNearbyCellCoord(tuna.position) match
                 case Some(c) =>
+                    
                     grid + ((c.x, c.y) -> Some(TUNA))
                     // Gestion reproduction
                     if (tuna.breed + 1 >= tBreed) {
