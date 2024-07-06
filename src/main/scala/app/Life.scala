@@ -30,7 +30,7 @@ final case class Life(grid : Map[(Int, Int), FishType], fishList: List[Fish], ag
                         fill = Color.rgb(42, 72, 99)
                     }
         ).toList
-        
+
         shapeList
     }
 
@@ -42,11 +42,11 @@ final case class Life(grid : Map[(Int, Int), FishType], fishList: List[Fish], ag
                         // Déplacement du thon
                         if (fish.breed + 1 >= tBreed) {
                             // Reproduction à notre ancienne position
-                            (fish.asInstanceOf[Tuna].copy(position = newCoord, breed = 0), GridStep(REPRODUCE, fish.position, newCoord, TUNA))
+                            (fish.copy(position = newCoord, breed = 0), GridStep(REPRODUCE, fish.position, newCoord, TUNA))
                         }
                         else {
                             // Déplacement sans reproduction
-                            (fish.asInstanceOf[Tuna].copy(position = newCoord, breed = fish.breed + 1), GridStep(MOVE, fish.position, newCoord, TUNA))
+                            (fish.copy(position = newCoord, breed = fish.breed + 1), GridStep(MOVE, fish.position, newCoord, TUNA))
                         }
                     case None =>
                         // Pas de déplacement du thon
@@ -56,14 +56,14 @@ final case class Life(grid : Map[(Int, Int), FishType], fishList: List[Fish], ag
                     case Some(c) =>
                         // Déplacement avec repas
                         val eatenTunaGrid = grid.removed((c.x, c.y))
-                        moveShark(fish.asInstanceOf[Shark], Some(c), sBreed, sEnergy + 1, eatenTunaGrid)
+                        moveShark(fish, Some(c), sBreed, sEnergy + 1, eatenTunaGrid)
                     case None =>
                         getRandomFreeNearbyCellCoord(grid, fish.position) match
                             // Déplacement sans repas
                             case Some(c) =>
-                                moveShark(fish.asInstanceOf[Shark], Some(c), sBreed, sEnergy, grid)
+                                moveShark(fish, Some(c), sBreed, sEnergy, grid)
                             // Pas de déplacement
-                            case None => moveShark(fish.asInstanceOf[Shark], None, sBreed, sEnergy, grid)
+                            case None => moveShark(fish, None, sBreed, sEnergy, grid)
         }
 
         /** Décrit la grille finale suite à tous les mouvements de poissons */
