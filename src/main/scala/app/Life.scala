@@ -35,39 +35,12 @@ final case class Life(grid : Map[(Int, Int), FishType], fishList: List[Fish], ag
     }
 
     def move(tBreed: Int, sBreed: Int, sEnergy: Int): Life = {
-        val moveFishResult: List[(Fish, GridStep)] = fishList.map {
-            case fish: Tuna =>
-                getRandomFreeNearbyCellCoord(grid, fish.position) match
-                    case Some(newCoord) =>
-                        // Déplacement du thon
-                        if (fish.breed + 1 >= tBreed) {
-                            // Reproduction à notre ancienne position
-                            (fish.copy(position = newCoord, breed = 0), GridStep(REPRODUCE, fish.position, newCoord, TUNA))
-                        }
-                        else {
-                            // Déplacement sans reproduction
-                            (fish.copy(position = newCoord, breed = fish.breed + 1), GridStep(MOVE, fish.position, newCoord, TUNA))
-                        }
-                    case None =>
-                        // Pas de déplacement du thon
-                        (fish, GridStep(NOTHING, fish.position, fish.position, TUNA))
-            case fish: Shark =>
-                getNextTunaOccupiedCellCoord(grid, fish.position) match
-                    case Some(c) =>
-                        // Déplacement avec repas
-                        val eatenTunaGrid = grid.removed((c.x, c.y))
-                        moveShark(fish, Some(c), sBreed, sEnergy + 1, eatenTunaGrid)
-                    case None =>
-                        getRandomFreeNearbyCellCoord(grid, fish.position) match
-                            // Déplacement sans repas
-                            case Some(c) =>
-                                moveShark(fish, Some(c), sBreed, sEnergy, grid)
-                            // Pas de déplacement
-                            case None => moveShark(fish, None, sBreed, sEnergy, grid)
-        }
+        val moveFishResult: (Map[(Int, Int), FishType], List[Fish]) = handleFishMovement(grid, fishList, 0, tBreed, sBreed)
 
+        // TODO : tout revoir à la suite de cette ligne
         /** Décrit la grille finale suite à tous les mouvements de poissons */
-        val postFishMoveGrid: Map[(Int, Int), FishType] = getFishGrid(grid, moveFishResult.map(e => e._2), 0)
+        val postFishMoveGrid = moveFishResult._1
+        val postFishMoveList = moveFishResult._2
 
         // Gestion les poissons qui :
         // - sont dans la grille mais pas dans la liste (issus de reproduction = ajout)
@@ -75,7 +48,7 @@ final case class Life(grid : Map[(Int, Int), FishType], fishList: List[Fish], ag
 
         // AJOUT
         // Récupération des positions nouvelles par rapport à la grille de base
-        val newFishPos = postFishMoveGrid.toList.diff(moveFishResult.map(e => ((e._1.position.x, e._1.position.y), if(e._1.isInstanceOf[Tuna]) TUNA else SHARK)))
+        val newFishPos = postFishMoveGrid.toList.diff(postFishMoveList.map(f => ((f.position.x, f.position.y), if(f.isInstanceOf[Tuna]) TUNA else SHARK)))
         // Création des poissons par rapport à ces positions
         val newFishList = newFishPos.map(pos =>
             pos._2 match
@@ -87,14 +60,14 @@ final case class Life(grid : Map[(Int, Int), FishType], fishList: List[Fish], ag
         )
 
         // SUPPRESSION
-        val goneFishPos = moveFishResult.map(e => ((e._1.position.x, e._1.position.y), if(e._1.isInstanceOf[Tuna]) TUNA else SHARK)).diff(postFishMoveGrid.toList)
+        val goneFishPos = postFishMoveList.map(f => ((f.position.x, f.position.y), if(f.isInstanceOf[Tuna]) TUNA else SHARK)).diff(postFishMoveGrid.toList)
         // Récupération des poissons à supprimer
-        val goneFishList = moveFishResult.map(e => e._1).filter(f =>
+        val goneFishList = postFishMoveList.filter(f =>
             goneFishPos.contains(((f.position.x, f.position.y), if(f.isInstanceOf[Tuna]) TUNA else SHARK))
         )
 
         // Liste finale
-        val finalFishList = moveFishResult.map(e => e._1).diff(goneFishList) ::: newFishList
+        val finalFishList = postFishMoveList.diff(goneFishList) ::: newFishList
 
         copy(grid = postFishMoveGrid, fishList = finalFishList)
     }
@@ -126,8 +99,7 @@ final case class Life(grid : Map[(Int, Int), FishType], fishList: List[Fish], ag
         Random.shuffle(nearbyCells).headOption
     }
 
-    private def moveShark(shark: Shark, newCoord: Option[Coord], sBreed: Int, sEnergy: Int, fishGrid: Map[(Int, Int), FishType]): (Shark, GridStep) = {
-        // TODO : Vérifier l'utilité du param sEnergy
+    private def moveShark(fishList: List[Fish], shark: Shark, newCoord: Option[Coord], sBreed: Int, fishGrid: Map[(Int, Int), FishType]): (Map[(Int, Int), FishType], List[Fish]) = {
         if(shark.energy - 1 > 0) {
             // Déplacement
             newCoord match
@@ -135,54 +107,87 @@ final case class Life(grid : Map[(Int, Int), FishType], fishList: List[Fish], ag
                     // Déplacement
                     if (shark.breed + 1 >= sBreed) {
                         // Déplacement avec reproduction
-                        (shark.copy(coord, 0, shark.energy - 1), GridStep(REPRODUCE, shark.position, coord, SHARK))
+                        val updatedList = fishList.filterNot(f => f == shark) :+ Shark(coord, 0, shark.energy - 1)
+                        val updatedGrid = getFishGrid(fishGrid, GridStep(REPRODUCE, shark.position, coord, SHARK))
+                        (updatedGrid, updatedList)
                     }
                     else {
                         // Déplacement sans reproduction
-                        (shark.copy(coord, shark.breed + 1, shark.energy - 1), GridStep(MOVE, shark.position, coord, SHARK))
+                        val updatedList = fishList.filterNot(f => f == shark) :+ Shark(coord, shark.breed + 1, shark.energy - 1)
+                        val updatedGrid = getFishGrid(fishGrid, GridStep(MOVE, shark.position, coord, SHARK))
+                        (updatedGrid, updatedList)
                     }
                 // Pas de déplacement
-                case None => (shark, GridStep(NOTHING, shark.position, shark.position, SHARK))
+                case None =>
+                    (fishGrid, fishList)
         }
         else {
             // Décès
             println("Shark Death reported")
-            (shark, GridStep(DIE, shark.position, shark.position, SHARK))
+            val updatedGrid = getFishGrid(fishGrid, GridStep(DIE, shark.position, shark.position, SHARK))
+            (updatedGrid, fishList)
         }
     }
+    
+    private def getFishGrid(fishGrid: Map[(Int, Int), FishType], gs: GridStep): Map[(Int, Int), FishType] = {
+        gs.action match
+            case MOVE =>
+                fishGrid
+                  .removed((gs.oldCoord.x, gs.oldCoord.y))
+                  .updated((gs.newCoord.x, gs.newCoord.y), gs.fishType)                
+            case REPRODUCE =>
+                fishGrid
+                  .updated((gs.newCoord.x, gs.newCoord.y), gs.fishType)
+            case DIE =>
+                fishGrid
+                  .removed((gs.oldCoord.x, gs.oldCoord.y))
+            case NOTHING =>
+                fishGrid
+    }
 
-    /** Applique les changements concernant les thons stockés dans la gsList au map des positions */
     @tailrec
-    private def getFishGrid(fishGrid: Map[(Int, Int), FishType], gsList: List[GridStep], gsIndex: Int): Map[(Int, Int), FishType] = {
-        if(gsIndex < gsList.length) {
-            val gs = gsList(gsIndex)
-
-            gs.action match
-                case MOVE =>
-                    val newGrid = fishGrid
-                      .removed((gs.oldCoord.x, gs.oldCoord.y))
-                      .updated((gs.newCoord.x, gs.newCoord.y), gs.fishType)
-
-                    getFishGrid(newGrid, gsList, gsIndex + 1)
-                case REPRODUCE =>
-                    val newGrid = fishGrid
-                      .updated((gs.newCoord.x, gs.newCoord.y), gs.fishType)
-
-                    getFishGrid(newGrid, gsList, gsIndex + 1)
-                case DIE =>
-                    val newGrid = fishGrid
-                      .removed((gs.oldCoord.x, gs.oldCoord.y))
-
-                    getFishGrid(newGrid, gsList, gsIndex + 1)
-                case NOTHING =>
-                    getFishGrid(fishGrid, gsList, gsIndex + 1)
+    private def handleFishMovement(fishGrid: Map[(Int, Int), FishType], fishList: List[Fish], index: Int, tBreed: Int, sBreed: Int): (Map[(Int, Int), FishType], List[Fish]) = {
+        if(index < fishList.length) {
+            fishList(index) match
+                case fish: Tuna =>
+                    getRandomFreeNearbyCellCoord(fishGrid, fish.position) match
+                        case Some(newCoord) =>
+                            // Déplacement du thon
+                            if (fish.breed + 1 >= tBreed) {
+                                // Reproduction à notre ancienne position
+                                val updatedList = fishList.filterNot(f => f == fish) :+ Tuna(newCoord, 0)
+                                val updatedGrid = getFishGrid(fishGrid, GridStep(REPRODUCE, fish.position, newCoord, TUNA))
+                                handleFishMovement(updatedGrid, updatedList, index + 1, tBreed, sBreed)
+                            }
+                            else {
+                                // Déplacement sans reproduction
+                                val updatedList = fishList.filterNot(f => f == fish) :+ Tuna(newCoord, fish.breed + 1)
+                                val updatedGrid = getFishGrid(fishGrid, GridStep(MOVE, fish.position, newCoord, TUNA))
+                                handleFishMovement(updatedGrid, updatedList, index + 1, tBreed, sBreed)
+                            }
+                        case None =>
+                            // Pas de déplacement du thon
+                            handleFishMovement(fishGrid, fishList, index + 1, tBreed, sBreed)
+                case fish: Shark =>
+                    getNextTunaOccupiedCellCoord(fishGrid, fish.position) match
+                        case Some(c) =>
+                            // Déplacement avec repas
+                            val eatenTunaGrid = fishGrid.removed((c.x, c.y))
+                            val sharkMoveResult = moveShark(fishList, fish.copy(energy = fish.energy + 1), Some(c), sBreed, eatenTunaGrid)
+                            handleFishMovement(sharkMoveResult._1, sharkMoveResult._2, index + 1, tBreed, sBreed)                            
+                        case None =>
+                            getRandomFreeNearbyCellCoord(fishGrid, fish.position) match
+                                // Déplacement sans repas
+                                case Some(c) =>
+                                    val sharkMoveResult = moveShark(fishList, fish, Some(c), sBreed, fishGrid)
+                                    handleFishMovement(sharkMoveResult._1, sharkMoveResult._2, index + 1, tBreed, sBreed)
+                                // Pas de déplacement
+                                case None =>
+                                    val sharkMoveResult = moveShark(fishList, fish, None, sBreed, fishGrid)
+                                    handleFishMovement(sharkMoveResult._1, sharkMoveResult._2, index + 1, tBreed, sBreed)
         }
         else {
-            fishGrid
+            (fishGrid, fishList)
         }
-    }
-
-    private def getFishTypeAtCoordinates(fishGrid: Map[(Int, Int), FishType], coord: Coord): Option[FishType] = {
-        fishGrid.get((coord.x, coord.y))
     }
 }

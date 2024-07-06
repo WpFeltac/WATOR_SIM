@@ -23,7 +23,7 @@ object Main extends JFXApp3 {
 
     private val nSharks = 1
     private val sBreed = 5
-    private val sEnergy = 1000
+    private val sEnergy = 10
 
     private val gridBound = windowSize / agentSize
 
@@ -70,7 +70,7 @@ object Main extends JFXApp3 {
         new Timeline {
             keyFrames = List(
                 KeyFrame(
-                    time = Duration(500),
+                    time = Duration(100),
                     onFinished = _ => life.update(life.value.move(tBreed, sBreed, sEnergy))
                 )
             )
