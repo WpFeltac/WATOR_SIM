@@ -18,12 +18,12 @@ object Main extends JFXApp3 {
     private val windowSize = 600
     private val agentSize = 20
 
-    private val nTunas = 1
+    private val nTunas = 0
     private val tBreed = 5
 
-    private val nSharks = 0
-    private val sBreed = 1000
-    private val sEnergy = 1000
+    private val nSharks = 1
+    private val sBreed = 5
+    private val sEnergy = 10
 
     private val gridBound = windowSize / agentSize
 
@@ -51,8 +51,6 @@ object Main extends JFXApp3 {
         val emptyGrid : Map[(Int, Int), FishType] = Map()
         val halfGrid = emptyGrid ++ tunaList.map(e => ((e.position.x, e.position.y), FishType.TUNA))
         val finalGrid = halfGrid ++ sharkList.map(e => ((e.position.x, e.position.y), FishType.SHARK))
-
-        println(finalGrid)
 
         val life: ObjectProperty[Life] = ObjectProperty(Life(finalGrid, tunaList, sharkList, agentSize, gridBound))
 

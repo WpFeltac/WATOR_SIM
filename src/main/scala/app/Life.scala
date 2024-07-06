@@ -40,11 +40,9 @@ final case class Life(grid : Map[(Int, Int), FishType], tunaList: List[Tuna], sh
         val moveTunaResult: List[(Tuna, GridStep)] = tunaList.map(tuna =>
             getRandomFreeNearbyCellCoord(grid, tuna.position) match
                 case Some(newCoord) =>
-                    println(newCoord)
                     // Déplacement du thon
                     if (tuna.breed + 1 >= tBreed) {
                         // Reproduction à notre ancienne position
-                        println("Reproducing !")
                         (tuna.copy(position = newCoord, breed = 0), GridStep(REPRODUCE, tuna.position, newCoord))
                     }
                     else {
@@ -56,7 +54,6 @@ final case class Life(grid : Map[(Int, Int), FishType], tunaList: List[Tuna], sh
                     (tuna, GridStep(NOTHING, tuna.position, tuna.position))
         )
 
-        println(moveTunaResult.map(e => e._2))
         val postTunaMoveGrid: Map[(Int, Int), FishType] = getTunaGrid(grid, moveTunaResult.map(e => e._2), 0)
 
         // SHARKS
@@ -68,7 +65,8 @@ final case class Life(grid : Map[(Int, Int), FishType], tunaList: List[Tuna], sh
                     moveShark(shark, Some(c), sBreed, sEnergy + 1, eatenTunaGrid)
                 case None => getRandomFreeNearbyCellCoord(postTunaMoveGrid, shark.position) match
                     // Déplacement sans repas
-                    case Some(c) => moveShark(shark, Some(c), sBreed, sEnergy, postTunaMoveGrid)
+                    case Some(c) =>
+                        moveShark(shark, Some(c), sBreed, sEnergy, postTunaMoveGrid)
                     // Pas de déplacement
                     case None => moveShark(shark, None, sBreed, sEnergy, postTunaMoveGrid)
         })
@@ -85,14 +83,8 @@ final case class Life(grid : Map[(Int, Int), FishType], tunaList: List[Tuna], sh
 
         // AJOUT
         // Récupération des positions nouvelles par rapport à la grille de base
-        val newTunasPos = postFishMoveGrid.filter(gridInfo =>
-            val tunaList = moveTunaResult.map(e => e._1)
-            !tunaList.exists(t => gridInfo._1 == (t.position.x, t.position.y) )
-        ).toList
-        val newSharksPos = postFishMoveGrid.filter(gridInfo =>
-            val sharkList = moveSharkResult.map(e => e._1)
-            !sharkList.exists(s => gridInfo._1 == (s.position.x, s.position.y))
-        ).toList
+        val newTunasPos = postTunaMoveGrid.toList.diff(moveTunaResult.map(e => ((e._1.position.x, e._1.position.y), TUNA)))
+        val newSharksPos = postFishMoveGrid.filter(g => g._2 == SHARK).toList.diff(moveSharkResult.map(e => ((e._1.position.x, e._1.position.y), SHARK)))
 
         // Création des poissons par rapport à ces positions
         val newTunasList = newTunasPos.map(pos =>
@@ -103,16 +95,20 @@ final case class Life(grid : Map[(Int, Int), FishType], tunaList: List[Tuna], sh
         )
 
         // SUPPRESSION
-        val irrelevantTunasList = moveTunaResult.map(e => e._1).filter(t =>
-            !postFishMoveGrid.exists(g => g._1 == (t.position.x, t.position.y))
+        val goneTunasPos = moveTunaResult.map(e => ((e._1.position.x, e._1.position.y), TUNA)).diff(postTunaMoveGrid.toList)
+        val goneSharksPos = moveSharkResult.map(e => ((e._1.position.x, e._1.position.y), SHARK)).diff(postFishMoveGrid.toList)
+
+        // Récupération des poissons à supprimer
+        val goneTunasList = moveTunaResult.map(e => e._1).filter(t =>
+            goneTunasPos.contains(((t.position.x, t.position.y), TUNA))
         )
-        val irrelevantSharksList = moveSharkResult.map(e => e._1).filter(s =>
-            !postFishMoveGrid.exists(g => g._1 == (s.position.x, s.position.y))
+        val goneSharksList = moveSharkResult.map(e => e._1).filter(s =>
+            goneSharksPos.contains(((s.position.x, s.position.y), SHARK))
         )
 
         // Listes finales
-        val finalTunaList = moveTunaResult.map(e => e._1).diff(irrelevantTunasList) ::: newTunasList
-        val finalSharkList = moveSharkResult.map(e => e._1).diff(irrelevantSharksList) ::: newSharksList
+        val finalTunaList = moveTunaResult.map(e => e._1).diff(goneTunasList) ::: newTunasList
+        val finalSharkList = moveSharkResult.map(e => e._1).diff(goneSharksList) ::: newSharksList
 
         copy(grid = postFishMoveGrid, tunaList = finalTunaList, sharkList = finalSharkList)
     }
@@ -183,18 +179,15 @@ final case class Life(grid : Map[(Int, Int), FishType], tunaList: List[Tuna], sh
 
                     getTunaGrid(newGrid, gsList, gsIndex + 1)
                 case REPRODUCE =>
-                    println("\n--- Handling reproduction ---")
                     val newGrid = fishGrid
                       .updated((gs.newCoord.x, gs.newCoord.y), TUNA)
-                    println(newGrid)
-                    println("------\n")
 
                     getTunaGrid(newGrid, gsList, gsIndex + 1)
                 case NOTHING =>
                     getTunaGrid(fishGrid, gsList, gsIndex + 1)
         }
         else {
-            fishGrid
+            fishGrid.filter(p => p._2 == TUNA)
         }
     }
 
@@ -209,12 +202,12 @@ final case class Life(grid : Map[(Int, Int), FishType], tunaList: List[Tuna], sh
                 case MOVE =>
                     val newGrid = fishGrid
                       .removed((gs.oldCoord.x, gs.oldCoord.y))
-                      .updated((gs.newCoord.x, gs.newCoord.y), TUNA)
+                      .updated((gs.newCoord.x, gs.newCoord.y), SHARK)
 
                     getSharkGrid(newGrid, gsList, gsIndex + 1)
                 case REPRODUCE =>
                     val newGrid = fishGrid
-                      .updated((gs.newCoord.x, gs.newCoord.y), TUNA)
+                      .updated((gs.newCoord.x, gs.newCoord.y), SHARK)
 
                     getSharkGrid(newGrid, gsList, gsIndex + 1)
                 case DIE =>
