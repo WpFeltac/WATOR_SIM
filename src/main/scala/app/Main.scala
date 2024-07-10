@@ -16,14 +16,14 @@ import scala.util.Random
 object Main extends JFXApp3 {
 
     private val windowSize = 600
-    private val agentSize = 20
+    private val agentSize = 10
 
-    private val nTunas = 1
-    private val tBreed = 5
+    private val nTunas = 500
+    private val tBreed = 2
 
-    private val nSharks = 1
-    private val sBreed = 5
-    private val sEnergy = 10
+    private val nSharks = 50
+    private val sBreed = 9
+    private val sEnergy = 3
 
     private val gridBound = windowSize / agentSize
 
