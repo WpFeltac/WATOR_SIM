@@ -1,11 +1,9 @@
 package app
 
 import app.FishType.{SHARK, TUNA}
-import app.GridAction.{DIE, MOVE, NOTHING, REPRODUCE}
 import scalafx.scene.paint.Color
 import scalafx.scene.shape.Rectangle
 
-import scala.annotation.tailrec
 import scala.util.Random
 
 final case class Life(grid : Map[(Int, Int), FishType], fishList: List[Fish], agentSize: Int, gridBound: Int) {
@@ -123,11 +121,10 @@ final case class Life(grid : Map[(Int, Int), FishType], fishList: List[Fish], ag
                     }
                 // Pas de déplacement
                 case None =>
-                    lg
+                    (lg._1 :+ Shark(shark.position, shark.breed, shark.energy - 1), lg._2)
         }
         else {
             // Décès
-            println("Shark Death reported")
             val updatedGrid = lg._2.removed((shark.position.x, shark.position.y))
             (lg._1, updatedGrid)
         }
