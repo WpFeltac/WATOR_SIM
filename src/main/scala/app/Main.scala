@@ -16,25 +16,31 @@ import scala.util.Random
 object Main extends JFXApp3 {
 
     private val windowSize = 600
+
+    // 10
     private val agentSize = 20
 
-    private val nTunas = 0
-    private val tBreed = 10000
+    // 500
+    private val nTunas = 250
+    // 2
+    private val tBreed = 4
 
-    private val nSharks = 0
-    private val sBreed = 1000
-    private val sEnergy = 1000
+    // 50
+    private val nSharks = 25
+    // 9
+    private val sBreed = 18
+    // 3
+    private val sEnergy = 6
 
     private val gridBound = windowSize / agentSize
 
     override def start(): Unit = {
 
-        val grid : Map[(Int, Int), FishType] = Map()
-
+        // Initialisation des listes de poissons respectives
         val tunaList = List.fill(nTunas) {
             Tuna(
                 Coord(Random.nextInt(gridBound), Random.nextInt(gridBound)),
-                tBreed
+                0
             )
         }
         println(tunaList.length + " tuna(s) spawned")
@@ -42,14 +48,18 @@ object Main extends JFXApp3 {
         val sharkList = List.fill(nSharks) {
             Shark(
                 Coord(Random.nextInt(gridBound), Random.nextInt(gridBound)),
-                sBreed,
+                0,
                 sEnergy
             )
-        }       
-        
+        }
         println(sharkList.length + " shark(s) spawned")
 
-        val life: ObjectProperty[Life] = ObjectProperty(Life(grid, tunaList, sharkList, agentSize, gridBound))
+        // Init HashMap
+        val emptyGrid : Map[(Int, Int), FishType] = Map()
+        val halfGrid = emptyGrid ++ tunaList.map(e => ((e.position.x, e.position.y), FishType.TUNA))
+        val finalGrid = halfGrid ++ sharkList.map(e => ((e.position.x, e.position.y), FishType.SHARK))
+
+        val life: ObjectProperty[Life] = ObjectProperty(Life(finalGrid, tunaList ::: sharkList, agentSize, gridBound))
 
         stage = new PrimaryStage {
             title = "WATOR Simulation"
@@ -67,7 +77,7 @@ object Main extends JFXApp3 {
         new Timeline {
             keyFrames = List(
                 KeyFrame(
-                    time = Duration(500),
+                    time = Duration(100),
                     onFinished = _ => life.update(life.value.move(tBreed, sBreed, sEnergy))
                 )
             )
